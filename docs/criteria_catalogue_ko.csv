@@ -1,0 +1,80 @@
+id,구분,판정축,피처,규칙,조건,적발셀_초기기준,적발셀_보완후,비고
+R01,육안 판별 기준,static,Latitude (deg),static_limit,x < -90 또는 x > 90 → 이상치,0,0,
+R02,육안 판별 기준,static,Longitude (deg),static_limit,x < -180 또는 x > 180 → 이상치,0,0,
+R03,육안 판별 기준,static,HEADING,static_limit,x < 0 또는 x ≥ 360 → 이상치,0,0,
+R04,육안 판별 기준,static,RUDDER ANGLE,static_limit,x < -40 또는 x > 40 → 이상치,11,11,
+R05,육안 판별 기준,static,SPEED(SOG),static_limit,x < 0 또는 x > 27 → 이상치,19,19,
+R06,육안 판별 기준,static,SPEED(STW),static_limit,x < -5 또는 x > 25.5 → 이상치,402,402,
+R07,육안 판별 기준,static,FWD DRAFT,static_limit,x < 2 → 이상치,0,5242,
+R08,육안 판별 기준,static,AFT DRAFT,static_limit,x < 6 → 이상치,16170,16180,
+R09,육안 판별 기준,static,MID(P) DRAFT,static_limit,x < 5.5 또는 x > 16.65 → 이상치,7360,7360,
+R10,육안 판별 기준,static,MID(S) DRAFT,static_limit,x < 5.5 또는 x > 16.65 → 이상치,5941,5941,
+R11,육안 판별 기준,static,FORE DRAFT Noon,static_limit,x ≤ 0 또는 x > 16.55 → 이상치,3460274,3482143,
+R12,육안 판별 기준,static,AFT DRAFT Noon,static_limit,x ≤ 0 또는 x > 16.55 → 이상치,3451273,3453816,
+R13,육안 판별 기준,static,ME LOAD,static_limit,x < 0 또는 x > 100 → 이상치,5347,5347,
+R14,육안 판별 기준,static,ME RPM,static_limit,|x| > 80 → 이상치,291,291,
+R15,육안 판별 기준,static,ME RPM(INT),static_limit,|x| > 80 → 이상치,0,0,
+R16,육안 판별 기준,static,ME SHAFT POWER,static_limit,x < 0 또는 x > 60000 → 이상치,9,9,
+R17,육안 판별 기준,static,ME SHAFT TORQUE,static_limit,|x| > 7500 → 이상치,0,11888,
+R18,육안 판별 기준,static,ME FO FLOW,static_limit,x < 0 또는 x > 16000 → 이상치,2974745,3013659,
+R19,육안 판별 기준,static,AE FO FLOW,static_limit,x < 0 또는 x > 3000 → 이상치,54092,54092,
+R20,육안 판별 기준,static,AB FO FLOW,static_limit,x < 0 또는 x > 2000 → 이상치,2537795,2537795,
+R21,육안 판별 기준,static,WIND ANGLE(R),static_limit,x < 0 또는 x ≥ 360 → 이상치,1,1,
+R22,육안 판별 기준,static,WIND SPEED(R),static_limit,x < 0 → 이상치,0,95,
+R23,육안 판별 기준,static,WIND SPEED(T),static_limit,x < 0 또는 x > 50 → 이상치,43,43,
+R24,육안 판별 기준,static,WATER DEPTH-M,static_limit,x ≤ 0 → 이상치,0,0,
+R25,육안 판별 기준,static,ER TEMP,static_limit,x < 5 또는 x > 60 → 이상치,763,43249,
+R26,육안 판별 기준,static,sst,static_limit,x < 271.25 → 이상치,0,0,
+R27,육안 판별 기준,static,swh,static_limit,x < 0 → 이상치,0,0,
+R28,육안 판별 기준,static,mwp,static_limit,x ≤ 0 → 이상치,0,0,
+R29,육안 판별 기준,static,DEADWEIGHT,static_calibrated,x < 0 또는 x > 선박별 관측 최대(설계 상한의 대리값) → 이상치,0,84132,
+R30,육안 판별 기준,static,DISPLACEMENT,static_calibrated,x < LIGHTSHIP 또는 x > LIGHTSHIP + DWT 상한 → 이상치 (LIGHTSHIP = median(DISP − DWT)),7041,249793,
+R31,육안 판별 기준,static,TRIM,gap_cutoff,상·하위 1 % 꼬리에서 인접값 간격 ≥ 1.0 m 이면 그 바깥 극단 클러스터 → 이상치,2057,2057,
+R32,육안 판별 기준,static,Trim Noon,gap_cutoff,상·하위 1 % 꼬리에서 인접값 간격 ≥ 1.0 m 이면 그 바깥 극단 클러스터 → 이상치,30581,30581,
+R33,육안 판별 기준,spike,FWD DRAFT,spike_P0.999,"|x − 31행 이동중앙값| > 선박별 P99.9 이고 ±5행 값이 서로 1 m 이내(회복), 운항 중 → 스파이크",6142,6142,
+R34,육안 판별 기준,spike,AFT DRAFT,spike_P0.999,"|x − 31행 이동중앙값| > 선박별 P99.9 이고 ±5행 값이 서로 1 m 이내(회복), 운항 중 → 스파이크",13559,13559,
+R35,육안 판별 기준,delta,HEADING,delta>=20/min,|Δx/Δt| ≥ 20 deg/min → 이상치 (원형차),9388,9388,
+R36,육안 판별 기준,delta,SPEED(SOG),delta>=2/min,|Δx/Δt| ≥ 2 kn/min → 이상치,1445,1445,
+R37,육안 판별 기준,delta,WIND SPEED(R),delta>=30/min,|Δx/Δt| ≥ 30 m/s/min → 이상치,273,273,
+R38,육안 판별 기준,delta,WIND SPEED(T),delta>=15/min,|Δx/Δt| ≥ 15 kn/min → 이상치,1171,1171,
+R39,육안 판별 기준,delta,SEA WATER TEMP,delta>=3/min,|Δx/Δt| ≥ 3 °C/min → 이상치,2739,2739,
+R40,육안 판별 기준,delta,ER TEMP,delta>=5/min,|Δx/Δt| ≥ 5 °C/min → 이상치,27,27,
+R41,육안 판별 기준,freeze,HEADING,freeze_equal>=30min,운항 중(SOG ≥ 5 kn) 동일값 30분 이상 연속 → 고착,567209,0,
+R42,육안 판별 기준,freeze,RUDDER ANGLE,freeze_equal>=120min,운항 중(SOG ≥ 5 kn) 동일값 120분 이상 연속 → 고착,95,95,
+R43,육안 판별 기준,freeze,SPEED(SOG),freeze_equal>=30min,운항 중(SOG ≥ 5 kn) 동일값 30분 이상 연속 → 고착,385777,385777,
+R44,육안 판별 기준,freeze,SPEED(STW),freeze_equal>=30min,운항 중(SOG ≥ 5 kn) 동일값 30분 이상 연속 → 고착,1975,1975,
+R45,육안 판별 기준,freeze,MID(P) DRAFT,freeze_equal>=30min,운항 중(SOG ≥ 5 kn) 동일값 30분 이상 연속 → 고착,0,0,
+R46,육안 판별 기준,freeze,MID(S) DRAFT,freeze_equal>=30min,운항 중(SOG ≥ 5 kn) 동일값 30분 이상 연속 → 고착,9049,9049,
+R47,육안 판별 기준,freeze,WIND ANGLE(R),freeze_equal>=30min,운항 중(SOG ≥ 5 kn) 동일값 30분 이상 연속 → 고착,12058,12058,
+R48,육안 판별 기준,freeze,SEA WATER TEMP,freeze_equal>=720min,운항 중(SOG ≥ 5 kn) 동일값 720분 이상 연속 → 고착,48144,48144,
+R49,육안 판별 기준,freeze,WATER DEPTH-M,freeze_equal>=30min,운항 중(SOG ≥ 5 kn) 동일값 30분 이상 연속 → 고착,537,537,
+R50,육안 판별 기준,freeze,ER TEMP,freeze_equal>=360min,운항 중(SOG ≥ 5 kn) 동일값 360분 이상 연속 → 고착,22871,22871,
+R51,육안 판별 기준,freeze,ME LOAD,freeze_value le0 >=30min,운항 중(SOG ≥ 5 kn) x ≤ 0 가 30분 이상 연속 → 고착(0 고정),0,0,
+R52,육안 판별 기준,freeze,ME RPM,freeze_value le0 >=30min,운항 중(SOG ≥ 5 kn) x ≤ 0 가 30분 이상 연속 → 고착(0 고정),0,0,
+R53,육안 판별 기준,freeze,ME RPM(INT),freeze_value le0 >=30min,운항 중(SOG ≥ 5 kn) x ≤ 0 가 30분 이상 연속 → 고착(0 고정),0,0,
+R54,육안 판별 기준,freeze,ME SHAFT POWER,freeze_value le1 >=30min,운항 중(SOG ≥ 5 kn) x ≤ 1 가 30분 이상 연속 → 고착(0 고정),0,0,
+R55,육안 판별 기준,freeze,ME FO FLOW,freeze_value le1 >=30min,운항 중(SOG ≥ 5 kn) x ≤ 1 가 30분 이상 연속 → 고착(0 고정),0,0,
+R56,육안 판별 기준,freeze,WIND SPEED(R),freeze_value le0 >=30min,운항 중(SOG ≥ 5 kn) x ≤ 0 가 30분 이상 연속 → 고착(0 고정),0,0,
+R57,육안 판별 기준,freeze,Latitude (deg),freeze_position<=200m/30min,운항 중(SOG ≥ 5 kn) 30분 후 Haversine 이동거리 ≤ 200 m → 위치 고착,111,111,
+R58,육안 판별 기준,relation,DISPLACEMENT,lightweight,"|(DISP − DWT) − median| > max(5,000 t, 8 %) → 관계 이상치 (DISP·DWT 모두 표시)",675433,675433,
+R59,육안 판별 기준,relation,ME SHAFT POWER,shaft_power_identity,|POWER − α·TORQUE·π·RPM/30| / P_calc > 50 % (|RPM| ≥ 1) → 관계 이상치 (POWER·RPM·TORQUE 표시),138255,138255,
+R60,육안 판별 기준,relation,TRIM,trim_consistency,|TRIM − (FWD − AFT)| > 1.0 m (부호 자동) → 관계 이상치 (TRIM·AFT·FWD 표시),0,0,
+R61,육안 판별 기준,segment,SPEED(SOG),berth_or_moored,60분 중 90 % 이상 SOG ≤ 0.5 kn 이고 60분 위치 이동 직경 ≤ 100 m → 정박·접안 구간(행 제외),5948382,5948382,
+V01,보완 기준,static,ME FO FLOW,visual_V01,"12,000 < x ≤ 16,000 L/h",0,38914,"채택: 상한 12,000 L/h — MCR 연료유량(≈10,800 L/h)을 넘는 15,5xx 2차 대역이 정적 상한 16,000 아래에 있음"
+V02,보완 기준,static,ME SHAFT TORQUE,visual_V02,x < −500 kNm (Ship L 계열),0,9316,"채택: 하한 −500 kNm — 전진 운항 중 −1,000~−5,000 kNm 음의 토크 군집; |x| > 7,500 으로는 못 잡음"
+V03,보완 기준,static,ME RPM,visual_V03,x < −5 rpm 이면서 SOG ≥ 5 kn 30분 이상(5분 초과 시간 단절 제외),0,0,기각: 이 후보 조건의 적발 없음 — 후진 회전수로 전진 5 kn 를 30분 유지할 수 없음
+V04,보완 기준,static,SPEED(STW),visual_V04,x < −1 kn 이면서 SOG ≥ 5 kn,0,168,채택: 운항 중 하한 −1 kn — 전진 운항 중 음의 대수속도 = 부호 오류
+V05,보완 기준,relation,SPEED(STW),visual_V05,"|STW − SOG| > 6 kn 이면서 SOG ≥ 5 kn, 30분 이상",0,3127,채택: 두 속도 관계 — 해류로 설명되지 않는 대수·대지속도 차
+V06,보완 기준,static,FWD DRAFT,visual_V06,"x ≤ 2.0 m 또는 x ≥ 17.9 m, (Ship L 계열) x ≥ 14.5 m",0,5242,"채택: 공통 경계 2.0/17.9 m, 시리즈 경계 14.5 m — 7척 최대 17.92, 5척 최대 14.5, 하한 2.0 이 일치 = 센서 출력 포화(레일)"
+V07,보완 기준,static,AFT DRAFT,visual_V07,x > 17.0 m,0,10,채택: 상한 17.0 m — 척도 흘수 16.52 m + 동적 여유 0.5 m 초과
+V08,보완 기준,static,AFT DRAFT Noon / FORE DRAFT Noon,visual_V08,0 < AFT Noon < 8 m 또는 0 < FORE Noon < 5 m,0,23299,채택: 선미 8 m / 선수 5 m — 1.0·3.0·8.3 m 같은 비물리 양수가 초기 기준(0 이하만)을 통과
+V09,보완 기준,static,DEADWEIGHT,visual_V09,"x < 60,000 t",0,84132,"채택: 하한 60,000 t — 밸러스트 상태 재화중량도 6만 t 이상; 1~5만 t 은 적하계산기 오류"
+V10,보완 기준,static,DISPLACEMENT,visual_V10,"x < LIGHTSHIP + 60,000",0,249793,"채택: 경하중량 + 60,000 t — 경하중량에 붙은 배수량 = 재화중량 0; 초기 하한(= LIGHTSHIP)은 등호 통과"
+V11,보완 기준,static,WIND SPEED(R),visual_V11,x > 40 m/s,0,95,채택: 상한 40 m/s — 허리케인급 초과; Δ ≥ 30 m/s/min 규칙은 연속 스파이크를 통과
+V12,보완 기준,static,SEA WATER TEMP,visual_V12,x > 36 °C 또는 0 < x ≤ 0.5 °C,0,4373,채택: 해수온 경계 0.5/36 °C — 해수 36 °C 초과와 0 근처 값; OISST 비교 규칙은 보류 상태
+V13,보완 기준,static,ER TEMP,visual_V13,x > 46 °C (Ship L),0,43249,"채택: 해당 선박 상한 46 °C — 11척 최대 ≤ 45 °C, Ship L 만 45–60 °C 꼬리(2023-04~06 센서 결함)"
+V14,보완 기준,static,WATER DEPTH-M,visual_V14,x < 2 m 이면서 SOG ≥ 5 kn,0,153,채택: 운항 중 하한 2 m — 운항 중 용골 아래 2 m 미만 = 접촉 상황 → 센서 오류
+D01,보완 기준,freeze,HEADING,resolution_guard,소수점 로깅 비율 < 10 % 인 달은 고착 판정 제외,567209,0,"초기 고착 기준 철회 — 정수 로깅 양자화 교락, 철회 567,209 셀"
+A5,보완 기준,relation,ME FO FLOW,sfoc_consistency,"SOG ≥ 5 kn, P > 5 MW, 0 < FO ≤ 16,000의 일별 관측 60개 이상; 중앙값 ∉ [0.13, 0.26] L/kWh인 날 전체와 이상일 사이 30일 이하 연결",1301297,1301297,"연료–동력 관계 기준; Ship J 관측 월 비율 약 1.9배, 결측으로 변화 날짜 불확실"
+A1,보완 기준,normalize,ME SHAFT TORQUE,vessel_scale_fix,α = median(POWER/P_calc) ≈ 10 인 선박의 토크 ×10,0,0,"Ship K; 보정 없이는 |TORQUE| > 7,500 규칙이 영구 무효"
+SENT,보완 기준,static,ME FO FLOW,sentinel_band,"> 16,000 은 65,534 단일값이 아니라 65,5xx 대역",0,2966484,전수 검증; 적발 자체는 R18 정적 기준이 수행

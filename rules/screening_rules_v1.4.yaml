@@ -1,0 +1,259 @@
+# reference 가이드라인 → 기계 적용 규칙 (1단계 기준 데이터 생성)
+#
+# 원천: screening_guideline_ko.md  (CSV: outlier_reference_guidelines.csv)
+# 적용: code/rule_based_screening.py  →  dataset_baseline/
+# 입력: dataset/{ship}.csv  (43컬럼, UTC 포함, 1분 간격)
+#
+# 판정 축
+#   static        : 물리값 정적 한계
+#   spike         : 로컬 중앙값 대비 편차 + 회복 패턴
+#   delta         : 단위시간당 변화율
+#   freeze_equal  : 운항 중 동일값 연속 (stuck sensor)
+#   freeze_value  : 운항 중 특정 임계 이하 값 연속 (zero-stuck)
+#   relation      : 물리적으로 연결된 변수 간 정합성
+#   normalize     : 삭제가 아닌 값 보정
+#   segment       : 행(구간) 단위 학습 제외
+#
+# 주의
+#   - freeze_* 의 run length 는 "행 수"이며 UTC 간격이 1분이 아닌 지점에서 run 을 끊는다.
+#   - Noon Report 3개 컬럼은 24h Δ=0 이 정상 → freeze 규칙을 의도적으로 두지 않음 (가이드 §3.3)
+#   - 각도 컬럼의 Δ 는 원형차(circular diff) 로 계산한다.
+
+meta:
+  version: "1.4"   # 2026-11-13 고착 30분 → 120분, SOG 고착은 위·경도 이동속도로 검증 (v1.3: A17 육안 기준 V01–V14 + HEADING 해상도 가드 D01)
+  created: "2026-10-01"
+  source_doc: screening_guideline_ko.md
+  sampling_interval_min: 1
+  underway_definition: "SPEED(SOG) >= 5.0 knots"
+
+# 운항 중 판정 (여러 freeze 규칙의 공통 전제, 가이드 §3.1)
+underway:
+  column: "SPEED(SOG)"
+  min_knots: 5.0
+
+# --------------------------------------------------------------------------
+# 1. 정적 한계
+#    lo/hi 는 "정상 범위". lo_strict/hi_strict=true 이면 경계값도 이상치(초과=이상).
+# --------------------------------------------------------------------------
+static:
+  "Latitude (deg)":   {lo: -90.0,   hi: 90.0}
+  "Longitude (deg)":  {lo: -180.0,  hi: 180.0}
+  "HEADING":          {lo: 0.0,     hi: 360.0, hi_strict: true}   # >=360 이상치
+  "RUDDER ANGLE":     {lo: -40.0,   hi: 40.0}
+  "SPEED(SOG)":       {lo: 0.0,     hi: 27.0}
+  "SPEED(STW)":       {lo: -5.0,    hi: 25.5}   # 운항 중 음의 STW 는 static_underway(V04), STW-SOG 차는 relation(V05)
+  "FWD DRAFT":        {lo: 2.0, lo_strict: true, hi: 17.9, hi_strict: true}   # v1.3 V06: 센서 레일 2.0 / 17.92 (second building series 14.5 는 static_vessel)
+  "AFT DRAFT":        {lo: 6.0, hi: 17.0}                        # v1.3 V07: 척도 흘수 16.52 + 동적 여유
+  "MID(P) DRAFT":     {lo: 5.5,     hi: 16.65}
+  "MID(S) DRAFT":     {lo: 5.5,     hi: 16.65}
+  "FORE DRAFT Noon":  {lo: 5.0,     hi: 16.55}                   # v1.3 V08: 0 뿐 아니라 5 m 미만 양수도 비물리
+  "AFT DRAFT Noon":   {lo: 8.0,     hi: 16.55}                   # v1.3 V08
+  "ME LOAD":          {lo: 0.0,     hi: 100.0}
+  "ME RPM":           {abs_hi: 80.0}
+  "ME RPM(INT)":      {abs_hi: 80.0}
+  "ME SHAFT POWER":   {lo: 0.0,     hi: 60000.0}
+  "ME SHAFT TORQUE":  {abs_hi: 7500.0, lo: -500.0}               # v1.3 V02: second building series 음의 토크 −1,000~−5,000
+  "ME FO FLOW":       {lo: 0.0,     hi: 12000.0}                  # v1.3 V01: 65,5xx 센티널 + 15,5xx 2차 대역; MCR 연료유량 ≈10,800 L/h
+  "AE FO FLOW":       {lo: 0.0,     hi: 3000.0}
+  "AB FO FLOW":       {lo: 0.0,     hi: 2000.0}
+  "WIND ANGLE(R)":    {lo: 0.0,     hi: 360.0, hi_strict: true}
+  "WIND SPEED(R)":    {lo: 0.0,     hi: 40.0}                    # v1.3 V11
+  "WIND SPEED(T)":    {lo: 0.0,     hi: 50.0}
+  "WATER DEPTH-M":    {lo: 0.0,     lo_strict: true}               # <=0 이상치
+  "ER TEMP":          {lo: 5.0,     hi: 60.0}                    # Ship L 은 static_vessel 에서 46 (V13)
+  "SEA WATER TEMP":   {lo: 0.5,     hi: 36.0}                    # v1.3 V12
+  "sst":              {lo: 271.25}                                # -1.9 degC
+  "swh":              {lo: 0.0}
+  "mwp":              {lo: 0.0,     lo_strict: true}
+
+# --------------------------------------------------------------------------
+# 0. 선박별 단위 스케일 보정 (규칙 적용 **전** 에 수행)
+#    근거: POWER = TORQUE * pi * RPM / 30 의 선박별 alpha = median(POWER/P_calc).
+#    진단: scale diagnosis (power = torque x pi x rpm / 30) -> ship_scale_fix.yaml
+#    Ship K 의 ME SHAFT TORQUE 가 정확히 10배 작아(중앙값 329 vs 선단 2,861~3,538)
+#    정적 한계 |TORQUE|>7,500 이 영구히 무효가 되는 문제를 해소한다.
+# --------------------------------------------------------------------------
+vessel_scale_fix_file: "rules/ship_scale_fix.yaml"
+
+# v1.3: 선박별 정적 한계 덮어쓰기 (static 항목과 병합) — 육안 V06·V13
+static_vessel:
+  "Ship H":          {"FWD DRAFT": {hi: 14.5, hi_strict: true}}
+  "Ship I":     {"FWD DRAFT": {hi: 14.5, hi_strict: true}}
+  "Ship J":   {"FWD DRAFT": {hi: 14.5, hi_strict: true}}
+  "Ship K": {"FWD DRAFT": {hi: 14.5, hi_strict: true}}
+  "Ship L":     {"FWD DRAFT": {hi: 14.5, hi_strict: true}, "ER TEMP": {hi: 46.0}}
+
+# v1.3: 운항 중(SOG>=5)에만 적용하는 정적 한계 — 육안 V04·V14
+static_underway:
+  "SPEED(STW)":       {lo: -1.0}     # 전진 운항 중 음의 대수속도 = 부호 오류
+  "WATER DEPTH-M":    {lo: 2.0}      # 운항 중 용골 아래 2 m 미만 = 센서 오류
+
+# 선박별 제원 기반 정적 한계 (데이터에서 교정)
+# 가이드 §5.6: 공식 DWT 상한이 데이터 max 와 일치. 조선소 계열을 추측하지 않고
+# 선박별 실측으로 교정한 뒤 로그에 남긴다.
+static_calibrated:
+  "DEADWEIGHT":
+    lo: 60000.0                  # v1.3 V09: 밸러스트 상태 재화중량도 6만 t 이상 → 1~5만 t 은 적하계산기 오류
+    hi_from: "data_max"          # 선박별 관측 최대값을 공식 DWT 상한으로 사용
+  "DISPLACEMENT":
+    lo_from: "lightship"          # median(DISPLACEMENT - DEADWEIGHT)
+    lo_offset: 60000.0           # v1.3 V10: 하한 = 경하중량 + 6만 (경하중량에 붙은 값 = DWT 0)
+    hi_from: "lightship_plus_dwt" # lightship + DEADWEIGHT 상한
+
+# 분포 기반 gap cutoff (가이드 §5.2)
+static_gap_cutoff:
+  columns: ["TRIM", "Trim Noon"]
+  tail_pct: 1.0        # 상·하위 1% tail 을 정렬
+  min_gap_m: 1.0       # 인접값 gap >= 1.0 m 이면 그 바깥을 극단 클러스터로 간주
+  # cutoff = (극단측 값 + 정상측 값) / 2
+
+# --------------------------------------------------------------------------
+# 2. 스파이크 (로컬 중앙값 편차 + 회복) — 가이드 §5.1
+# --------------------------------------------------------------------------
+spike_robust:
+  "FWD DRAFT":
+    window_min: 31              # +-15분, rolling median, center
+    dev_quantile: 0.999         # 선박별 |dev| P99.9 를 임계로
+    recovery_lag_min: 5         # |x[t-5] - x[t+5]| < recovery_tol 이면 "찍고 복귀"
+    recovery_tol_m: 1.0
+    require_underway: true
+  "AFT DRAFT":
+    window_min: 31
+    dev_quantile: 0.999
+    recovery_lag_min: 5
+    recovery_tol_m: 1.0
+    require_underway: true
+
+# --------------------------------------------------------------------------
+# 3. 동적 한계 (단위시간당 변화율)
+# --------------------------------------------------------------------------
+delta:
+  "HEADING":         {abs_rate_per_min: 20.0,  circular: true, period: 360.0}
+  "SPEED(SOG)":      {abs_rate_per_min: 2.0}
+  "WIND SPEED(R)":   {abs_rate_per_min: 30.0}
+  "WIND SPEED(T)":   {abs_rate_per_min: 15.0}
+  "SEA WATER TEMP":  {abs_rate_per_min: 3.0}
+  "ER TEMP":         {abs_rate_per_min: 5.0}
+
+# --------------------------------------------------------------------------
+# 4. 프리징 (운항 중 값 고정)
+# --------------------------------------------------------------------------
+# 4-a. 동일값 연속 (stuck sensor)
+freeze_equal:
+# v1.4: 30분 기준은 정상 정속 항해를 고착으로 오판(예: SOG 12.3 kn 95분) → 30분 기준을 모두 120분으로.
+  "HEADING":          {window_min: 120, resolution_guard: {min_decimal_frac: 0.10}}   # v1.3 D01: 정수 로깅 달(2023-01 이전)은 freeze 판정 제외
+  "RUDDER ANGLE":     {window_min: 120, note: "2~3시간 기준 중 보수적으로 120분. 직선항해 오탐 가능 → 조합 판정 플래그로만 사용"}
+  "SPEED(SOG)":       {window_min: 120, gps_check: {min_pos_coverage: 0.5, max_abs_diff_kn: 2.0, max_step_min: 5}}
+  #   v1.4 SOG: 120분 이상 같은 값인 운항 구간마다 위·경도 이동속도(연속 위치 간 Haversine 거리 합 / 경과 시간)를 계산.
+  #   (a) 구간 안 유효 위치가 50 % 미만이거나 이동속도를 계산할 수 없으면 → 이상치
+  #   (b) |SOG − 위치 이동속도| > 2.0 kn 이면 → 이상치
+  #   그 밖(위치로 본 속도와 맞는 정속 항해)은 이상치로 보지 않는다.
+  "SPEED(STW)":       {window_min: 120}
+  "MID(P) DRAFT":     {window_min: 120}
+  "MID(S) DRAFT":     {window_min: 120}
+  "WIND ANGLE(R)":    {window_min: 120}
+  "SEA WATER TEMP":   {window_min: 720}   # 12시간
+  "WATER DEPTH-M":    {window_min: 120}
+  "ER TEMP":          {window_min: 360}   # 6시간
+
+# 4-b. 임계 이하 값 연속 (zero-stuck)
+freeze_value:
+  "ME LOAD":          {op: "le", threshold: 0.0,  window_min: 120}
+  "ME RPM":           {op: "le", threshold: 0.0,  window_min: 120}
+  "ME RPM(INT)":      {op: "le", threshold: 0.0,  window_min: 120}
+  "ME SHAFT POWER":   {op: "le", threshold: 1.0,  window_min: 120}
+  "ME FO FLOW":       {op: "le", threshold: 1.0,  window_min: 120}
+  "WIND SPEED(R)":    {op: "le", threshold: 0.0,  window_min: 120}
+
+# 4-c. 위치 프리징 (위·경도 쌍으로 한 번만 판정) — 가이드 §5.4
+freeze_position:
+  lat_col: "Latitude (deg)"
+  lon_col: "Longitude (deg)"
+  horizon_min: 120           # t -> t+120min Haversine (v1.4: 30 -> 120)
+  horizon_tol_min: 5         # 실제 간격이 30~35분 안일 때만 유효
+  max_move_m: 200.0          # <=200m 이면 GPS/위치 프리징 (120분 정상 운항 이동은 30분의 약 4배라 더 보수적)
+  require_underway: true
+
+# --------------------------------------------------------------------------
+# 5. 관계 이상치
+# --------------------------------------------------------------------------
+relation:
+  lightweight:               # 가이드 §5.6
+    cols: ["DISPLACEMENT", "DEADWEIGHT"]
+    formula: "LW = DISPLACEMENT - DEADWEIGHT"
+    abs_tol_t: 5000.0
+    rel_tol: 0.08            # max(5000 t, 0.08*|median_LW|)
+  shaft_power:               # 가이드 §5.7
+    cols: ["ME SHAFT POWER", "ME RPM", "ME SHAFT TORQUE"]
+    formula: "P_calc = TORQUE * pi * RPM / 30"
+    alpha_correction: true   # alpha = median(POWER / P_calc) 선적합
+    min_abs_rpm: 1.0
+    rel_err_tol: 0.50
+  trim_consistency:          # 가이드 §5.8
+    cols: ["TRIM", "AFT DRAFT", "FWD DRAFT"]
+    formula: "TRIM_calc = AFT DRAFT - FWD DRAFT"
+    auto_sign: true          # 전 선박에서 부호가 반대면 FWD-AFT 로 전환
+    abs_tol_m: 1.0
+  stw_sog_consistency:       # v1.3 (2026-10-11) 육안 V05 — 해류로 설명되지 않는 대수·대지속도 차
+    cols: ["SPEED(STW)", "SPEED(SOG)"]
+    max_abs_diff_kn: 6.0
+    window_min: 30
+    flag_cols: ["SPEED(STW)"]
+  sfoc_consistency:          # (2026-10-04) — 가이드라인에 없던 규칙
+    # 연료유량계 척도 결함 검출. 연료유량/축동력 (L/kWh) 의 일별 중앙값이 물리 대역을 벗어나면
+    # 그 날의 ME FO FLOW 전체를 관계 이상치로 표시한다.
+    # 물리 근거: 2행정 주기관 SFOC 150~220 g/kWh, 연료 밀도 ~0.97 kg/L -> 0.155~0.227 L/kWh.
+    #            저부하 SFOC 상승·밀도 변동 여유를 더해 [0.13, 0.26].
+    # 실측 근거: 정상 11척 일별 중앙값 p1=0.137, p99.9=0.226.
+    #            Ship J 2020-07~2023-02 는 0.35~0.36 (x1.9) 로 완전 분리.
+    cols: ["ME FO FLOW", "ME SHAFT POWER"]
+    formula: "ratio = ME FO FLOW / ME SHAFT POWER  (daily median, underway, P > min_power_kw)"
+    min_power_kw: 5000.0     # 10000 -> 5000 (저출력 운항일도 평가해 잔여 결함 월 포착)
+    lo: 0.13
+    hi: 0.26
+    min_samples: 60          # 일별 유효 표본 하한 (분)
+    bridge_days: 30          # 7 -> 30 (장기 결함 구간 내 정박·저출력 공백을 메운다)
+    flag_cols: ["ME FO FLOW"]
+
+# --------------------------------------------------------------------------
+# 6. 정규화 (삭제 아님) — 가이드 §3.4
+# --------------------------------------------------------------------------
+normalize_mod360:
+  - "WIND ANGLE(T)"
+  - "mwd"
+
+# --------------------------------------------------------------------------
+# 7. 정박·접안 구간 (행 단위 제외) — 가이드 §5.9
+# --------------------------------------------------------------------------
+berth_segment:
+  window_min: 60
+  sog_max_knots: 0.5
+  sog_ratio_min: 0.90        # 60분 중 90% 이상이 SOG<=0.5
+  max_diameter_m: 100.0      # 60분 위치 이동 직경
+  # 육지/부두 인접 조건은 지도·수심 보조 없으면 생략 (가이드 §5.9)
+  land_proximity: false
+  action: "flag"             # 셀 삭제가 아니라 구간 플래그. 학습 단계에서 제외
+
+# --------------------------------------------------------------------------
+# 8. 보류 (외부 데이터 의존) — 가이드 §5.5 / §3.5
+# --------------------------------------------------------------------------
+deferred:
+  - column: "SEA WATER TEMP"
+    rule: "SEA WATER TEMP - OISST SST > 8 degC"
+    reason: "NOAA OISST 격자 매칭 파이프라인 없음"
+  - column: "WATER DEPTH-M"
+    rule: "|(WATER DEPTH + DRAFT - ETOPO) - median_bias| > P99.9"
+    reason: "ETOPO 수심 격자 매칭 파이프라인 없음"
+
+# --------------------------------------------------------------------------
+# 9. 규칙 없음 (이상치 판정 대상 아님)
+# --------------------------------------------------------------------------
+no_rule:
+  - "UTC"              # 인덱스
+  - "VESSELCODE"
+  - "ShipName"
+  - "DGPS EW"
+  - "DGPS NS"
+  - "ME SHAFT THRUST"  # 임계 미확정 (가이드: 세부 임계값 미확정)
+  - "u10"              # 고정 상·하한 없음 (풍속 합성 후 별도 검증)
+  - "v10"

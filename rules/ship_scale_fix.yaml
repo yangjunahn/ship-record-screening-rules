@@ -1,0 +1,9 @@
+meta:
+  created: '2026-10-04'
+  source: scale diagnosis (power = torque x pi x rpm / 30)
+  basis: POWER = TORQUE * pi * RPM / 30 의 선박별 alpha = median(POWER/P_calc)
+  rule: alpha 가 10^k (k!=0, 상대오차<=0.05) 이면 해당 피처에 10^k 를 곱해 보정
+  pow10_tol: 0.05
+vessel_scale_fix:
+  "Ship K":
+    ME SHAFT TORQUE: 10.0
