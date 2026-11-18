@@ -23,3 +23,7 @@ The measurement records are not part of this repository. They are proprietary an
 ## Bit mask
 
 static 1, spike 2, rate of change 4, freezing 8, relation 16.
+
+## License
+
+MIT License (see `LICENSE`).
