@@ -2,7 +2,7 @@
 
 This repository holds the rule set, the reference implementation and the criteria catalogue of the rule-based (manual) outlier screening used in
 
-> Seo, Y., Kim, M., Kim, S.-Y., Kwak, Y.-M., Kim, M.S., Kim, J., Ahn, Y. Screening of operational records and engine-signal-free prediction of main-engine fuel flow for twelve sister container ships (submitted).
+> Seo, Y., Kim, M., Kim, M.S., Kim, S.-Y., Kwak, Y.-M., Kim, J., Ahn, Y. Agreement of statistical outlier detectors with rule-based screening and per-ship estimation of fuel flow without engine signals for container ships (submitted).
 
 ## Contents
 
